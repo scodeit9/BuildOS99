@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react'; // Removed unused useEffect
 import Sidebar from './components/sidebar';
 import Header from './components/header';
 import Dashboard from './pages/dashboard';
@@ -8,22 +8,21 @@ import ResourceManager from './pages/resourcemanager';
 import QuickEstimator from './pages/QuickEstimator';
 import Metrics from './pages/riskmetric';
 import Login from './components/login';
-import Welcome from './pages/Welcome'; // NEW IMPORT
+import Welcome from './pages/Welcome'; 
 import libraryData from './constants/master_dataset.json';
-import { getInitialQuantities, BASE_PROJECT_TEMPLATE } from './constants/projectemplate';
+import { getInitialQuantities } from './constants/projectemplate'; // Removed unused BASE_PROJECT_TEMPLATE
 import { THEME } from './constants/theme';
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  // UPDATED: Initial state set to 'Welcome'
   const [activeTab, setActiveTab] = useState('Welcome');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [viewMode, setViewMode] = useState('list');
   const [notifications, setNotifications] = useState([]);
 
-  const PROJECT_MAP = {
+  const PROJECT_MAP = useMemo(() => ({
     "Substructure": ["Excavation", "Piling & Shoring", "Foundations", "Water Proofing", "Retaining Wall"],
     "Superstructure": ["Columns & Beams", "Floor Slab", "Core Construction", "Roof structure"],
     "Building Envelope": ["External Wall", "Roofing", "Glazing", "Windows & Doors"],
@@ -31,7 +30,7 @@ const App = () => {
     "Second Install": ["Internal Plastering", "Ceiling Installation", "Bathroom Installation", "Kitchen & Appliances", "Second Fix MEP", "Joinery", "Flooring", "Electrical Installation", "Internal Finishes"],
     "External Works": ["Landscaping"],
     "Testing, Commissioning & Handover": ["Testing & Balancing", "Electrical Certification", "Snagging", "Final Inspection", "Practical Completion"]
-  };
+  }), []);
 
   const STORAGE_KEY = 'CONCRETE_BUILD_PRO_STATE';
   
@@ -70,7 +69,6 @@ const App = () => {
 
   const labourItems = useMemo(() => libraryData.filter(item => item.Category === 'Labor'), []);
 
-  // Preserved Phase Logic: Calculates totals for the summary cards in Resource Manager
   const phasesWithCosts = useMemo(() => {
     return Object.entries(PROJECT_MAP).map(([phaseName, tasks]) => {
       let phaseTotal = 0;
@@ -83,7 +81,7 @@ const App = () => {
       });
       return { id: phaseName, name: phaseName, totalCost: phaseTotal, tasks };
     });
-  }, [quantities]);
+  }, [quantities, PROJECT_MAP]); // Added PROJECT_MAP to dependencies
 
   const dailyRiskExposure = delayMetrics.reduce((sum, m) => sum + (parseFloat(m.dailyCost) || 0), 0);
   const totalRiskImpact = overrunDays > 0 ? overrunDays * dailyRiskExposure : 0;
@@ -147,7 +145,6 @@ const App = () => {
         />
         
         <div style={{ padding: '30px' }}>
-          {/* NEW WELCOME PAGE ADDITION */}
           {activeTabName === 'Welcome' && (
             <Welcome setActiveTab={setActiveTab} />
           )}

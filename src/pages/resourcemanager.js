@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Save, X, RotateCcw, TrendingDown, TrendingUp, Plus, AlertCircle, Lock } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Save, X, RotateCcw, Plus, Lock } from 'lucide-react'; // Removed unused icons
 import { THEME } from '../constants/theme';
 import libraryData from '../constants/master_dataset.json';
 
@@ -13,7 +13,6 @@ const ResourceManager = ({
   filterTask
 }) => {
   // --- 1. EXTRACT BACKEND RATES ---
-  // This maps the actual price from your JSON to the Role Identifier
   const masterRates = useMemo(() => {
     return libraryData
       .filter(i => i.Category === 'Labor')
@@ -26,7 +25,6 @@ const ResourceManager = ({
   // --- 2. STATE MANAGEMENT ---
   const [laborRates, setLaborRates] = useState(() => {
     const saved = localStorage.getItem('CONCRETE_BUILD_PRO_LABOR_RATES');
-    // If no saved data, or if we want to force restore backend values, use masterRates
     return saved ? JSON.parse(saved) : { ...masterRates };
   });
 
@@ -38,10 +36,11 @@ const ResourceManager = ({
   const currentPhaseTasks = useMemo(() => currentPhase?.tasks || [], [currentPhase]);
   const allRoles = useMemo(() => Object.keys(masterRates), [masterRates]);
 
-  const getRolesForTask = (taskName) => {
+  // Wrapped in useCallback to prevent Vercel/ESLint dependency errors
+  const getRolesForTask = useCallback((taskName) => {
     const roles = libraryData.filter(i => i.Category === 'Labor' && i.Task === taskName).map(i => i.Identifier);
     return roles.length > 0 ? roles : allRoles;
-  };
+  }, [allRoles]);
 
   // --- 3. LOGIC & CALCULATIONS ---
   const calculateRowTotal = (row) => {
@@ -53,31 +52,31 @@ const ResourceManager = ({
   const baseline = currentPhase?.totalCost || 0; 
   const variance = baseline - totalLabourActual;
 
-  // Function to reset everything to backend defaults
+  // Wrapped in useCallback
+  const loadInitialTasks = useCallback(() => {
+    const rows = libraryData
+      .filter(item => item.Category === 'Labor' && currentPhaseTasks.includes(item.Task))
+      .map(i => ({ task: i.Task, type: i.Identifier, days: 1, number: 1, hoursPerDay: 8 }));
+    setResourceRows(rows);
+  }, [currentPhaseTasks]);
+
   const resetToBackendDefaults = () => {
     setLaborRates({ ...masterRates });
     localStorage.setItem('CONCRETE_BUILD_PRO_LABOR_RATES', JSON.stringify(masterRates));
     loadInitialTasks();
   };
 
-  const loadInitialTasks = () => {
-    const rows = libraryData
-      .filter(item => item.Category === 'Labor' && currentPhaseTasks.includes(item.Task))
-      .map(i => ({ task: i.Task, type: i.Identifier, days: 1, number: 1, hoursPerDay: 8 }));
-    setResourceRows(rows);
-  };
-
+  // Fixed Dependency Array
   useEffect(() => {
     loadInitialTasks();
     if (currentPhaseTasks.length > 0) {
       const task = currentPhaseTasks[0];
       setVariationInput(prev => ({ ...prev, task, type: getRolesForTask(task)[0] }));
     }
-  }, [currentPhase?.id]);
+  }, [currentPhase?.id, currentPhaseTasks, getRolesForTask, loadInitialTasks]);
 
   const handleRateChange = (role, newRate) => {
     const val = parseFloat(newRate) || 0;
-    // Ensure the rate cannot be lower than the backend value
     const validatedRate = Math.max(val, masterRates[role] || 0);
     const updated = { ...laborRates, [role]: validatedRate };
     setLaborRates(updated);
@@ -157,7 +156,7 @@ const ResourceManager = ({
             <span style={{ fontSize: '11px', fontWeight: '800', color: THEME.primary, marginRight: '4px' }}>€</span>
             <input 
               type="number" 
-              value={laborRates[variationInput.type]} 
+              value={laborRates[variationInput.type] || masterRates[variationInput.type]} 
               onChange={(e) => handleRateChange(variationInput.type, e.target.value)}
               style={{ border: 'none', width: '100%', fontWeight: '800', outline: 'none', fontSize: '13px', color: THEME.primary }}
             />
@@ -181,7 +180,7 @@ const ResourceManager = ({
                 <span style={{ fontSize: '11px', fontWeight: '800', marginRight: '4px' }}>€</span>
                 <input 
                   type="number" 
-                  value={laborRates[row.type]} 
+                  value={laborRates[row.type] || masterRates[row.type]} 
                   onChange={(e) => handleRateChange(row.type, e.target.value)}
                   style={{ background: 'none', border: 'none', width: '100%', outline: 'none', fontWeight: '800', fontSize: '12px', color: '#5B21B6' }}
                 />
